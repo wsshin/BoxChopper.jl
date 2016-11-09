@@ -1,7 +1,8 @@
-# BoxChopper
 [![Build Status](https://travis-ci.org/wsshin/BoxChopper.jl.svg?branch=master)](https://travis-ci.org/wsshin/BoxChopper.jl)
 [![Build status](https://ci.appveyor.com/api/projects/status/tankgbr1gj37lsaj?svg=true)](https://ci.appveyor.com/project/wsshin/boxchopper-jl)
+[![codecov](https://codecov.io/gh/wsshin/BoxChopper.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/wsshin/BoxChopper.jl)
 
+# BoxChopper
 When a plane runs across a 3-dimensional box, it divides the box into two pieces.  This Julia package calculates how large these pieces are in terms of volume fraction with respect to the original box volume.
 
 ## Usage
