@@ -138,7 +138,7 @@ function contains(nout::AbstractVector{Float}, r₀::AbstractVector{Float}, pt::
     return (isinclusive ? (≤) : (<))((pt-r₀)⋅nout, 0.)
 end
 
-function rvol_tricyl(box, cepts, hascept_in, r::Int, sv::AbstractVector{AbstractVector{Int}})
+function rvol_tricyl{T<:AbstractVector{Int}}(box, cepts, hascept_in, r::Int, sv::AbstractVector{T})
     # Return the volume fraction of the triangular cylinder in the box.
     # r: cylinder axis (one of X, Y, Z)
     # sv: array of signs [sx,sy,sz] of vertices
@@ -162,7 +162,7 @@ function rvol_tricyl(box, cepts, hascept_in, r::Int, sv::AbstractVector{Abstract
     return prod(d./∆w)/2.
 end
 
-function rvol_quadcyl(box, cepts, hascept_in, r::Int, sv::AbstractVector{AbstractVector{Int}})
+function rvol_quadcyl{T<:AbstractVector{Int}}(box, cepts, hascept_in, r::Int, sv::AbstractVector{T})
     # Return the volume fraction of the quadrangular cylinder in the box.
     # r: cylinder axis (one of X, Y, Z)
     # sv: array of signs [sx,sy,sz] of vertices
