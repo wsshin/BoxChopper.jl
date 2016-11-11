@@ -12,19 +12,12 @@ const SIGNS = [N, P]
 
 # If VE2E[sx,sy,sz,w] = [w,su,sv], then the edge corresponding to hascept[sx,sy,sz,w]
 # is the same as the edge corresponding to cepts[w,su,sv].
-const VE2E = Array{Array{Int,1}}(2,2,2,3)  # VE: vertices' edges, E: edges
-for sz = SIGNS
-    for sy = SIGNS
-        for sx = SIGNS
-            s = [sx, sy, sz]  # array of signs
-            for w = AXES
-                u, v = setdiff(AXES, w)
-                su, sv = s[[u,v]]
-                VE2E[sx,sy,sz,w] = [w,su,sv]
-            end
-        end
-    end
-end
+const VE2E = [(
+    s = [sx,sy,sz];
+    [w, s[w%3+1], s[(w+1)%3+1]]
+) for sx = SIGNS, sy = SIGNS, sz = SIGNS, w = AXES]
+
+const VI2VS = [[ind2sub((2,2,2),li)...] for li = 1:8]  # vertex index to subscripts
 
 function floatize_box{T<:Real}(box::Array{T,2})
     # box: [xn xp; yn yp; zn zp] (boundary locations of box)
@@ -54,7 +47,10 @@ function edgecepts(box, nout, r₀)
 
     # 12 edges are listed in the order of four x-directional edges, then four y-
     # directional edges, and then four z-directional edges.  In each group, the
-    # speeds of coordinate variation are the same as before.
+    # four edges are stored in a 2×2 array, whose faster varying index is the coordinate
+    # that cyclically comes next to the edge direction.  (E.g., for the y-directional
+    # edges, the first index varies the z-coordinate, and the second index varies
+    # the x-coordinate.)
 
     # The function first returns 12 intercepts between 12 edges and the plane.
     # Each intercept is described by a single coordinate, because the box is aligned
@@ -78,11 +74,11 @@ function edgecepts(box, nout, r₀)
     nr₀ = nout⋅r₀
 
     # Below, note that the plane equation is nout[X]*x + nout[Y]*y + nout[Z]*z - nout⋅r₀ = 0
-    cepts = Array{Float,3}(3,2,2)
-    for w = AXES
-        u, v = setdiff(AXES, w)
-        cepts[w,:,:] = [nout[w]==0.0 ? NaN:(nr₀ - nout[[u,v]]⋅[ru,rv]) / nout[w] for ru = box[u,:], rv = box[v,:]]  # about assignment of NaN, see below
-    end
+    cepts = [(
+        (u, v) = (w%3+1, (w+1)%3+1);
+        ruv = [box[u,su], box[v,sv]];
+        nout[w]==0.0 ? NaN:(nr₀ - nout[[u,v]]⋅ruv) / nout[w]
+    ) for w = AXES, su = SIGNS, sv = SIGNS]  # about assignment of NaN, see below
 
     # hascept_ex = Array{Bool,4}(2,2,2,3)  # does edge cross plane when extended?
     # hascept_in = Array{Bool,4}(2,2,2,3)  # does edge cross plane?
@@ -94,20 +90,19 @@ function edgecepts(box, nout, r₀)
     # does not cross the plane).
     exop = (<, >)  # exclusive inequality operators
     inop = (≤, ≥)  # inclusive inequality operators
-    for sz = SIGNS
-        for sy = SIGNS
-            for sx = SIGNS
-                s = [sx, sy, sz]  # array of signs
-                for w = AXES
-                    u, v = setdiff(AXES, w)
-                    sw, su, sv = s[[w,u,v]]
-                    negsw, = setdiff(SIGNS, sw)  # without comma, negsw is 1-element array
-                    hascept_ex[sx,sy,sz,w] = exop[sw](box[w,sw], cepts[w,su,sv])
-                    hascept_in[sx,sy,sz,w] = hascept_ex[sx,sy,sz,w] && inop[sw](cepts[w,su,sv], box[w,negsw])
-                end
-            end
-        end
-    end
+
+    hascept_ex = [(
+        s = [sx,sy,sz];
+        (u, v) = (w%3+1, (w+1)%3+1);
+        exop[s[w]](box[w,s[w]], cepts[w,s[u],s[v]])
+    ) for sx = SIGNS, sy = SIGNS, sz = SIGNS, w = AXES]  # does edge cross plane when extended?
+
+    hascept_in = [(
+        s = [sx,sy,sz];
+        (u, v) = (w%3+1, (w+1)%3+1);
+        negsw = s[w]%2+1;
+        hascept_ex[sx,sy,sz,w] && inop[s[w]](cepts[w,s[u],s[v]], box[w,negsw])
+    ) for sx = SIGNS, sy = SIGNS, sz = SIGNS, w = AXES]  # does edge cross plane?
 
     # Need to return a Boolean array of size = size(cepts).
     # Or, some data structure that connects hascept to the indices of cepts (i.e., edge indices)?
@@ -122,23 +117,20 @@ function vertices(box)
     # Return the coordinates of the vertices of the given box.
 
     box = floatize_box(box)
-    v = Array{Float,2}(2^3, 3)
-    i = 0
-    for z = box[3,:]
-        for y = box[2,:]
-            for x = box[1,:]
-                v[i+=1,:] = [x,y,z]
-            end
-        end
-    end
-
-    return v
+    return [box[X,N] box[Y,N] box[Z,N];
+            box[X,P] box[Y,N] box[Z,N];
+            box[X,N] box[Y,P] box[Z,N];
+            box[X,P] box[Y,P] box[Z,N];
+            box[X,N] box[Y,N] box[Z,P];
+            box[X,P] box[Y,N] box[Z,P];
+            box[X,N] box[Y,P] box[Z,P];
+            box[X,P] box[Y,P] box[Z,P]]
 end
 
 function contains(nout::Array{Float,1}, r₀::Array{Float,1}, pt::Array{Float,2}, isinclusive)
     # Tells if pt is contained in the half-space whose outward normal is nout.
     size(pt)[2] ≠ 3 && throw(ArgumentError("pt = $pt should have three columns."))
-    return (isinclusive ? (.≤) : (.<))(broadcast(-, pt, r₀') * nout, 0.)
+    return (isinclusive ? (.≤) : (.<))(broadcast(-, pt, transpose(r₀)) * nout, 0.)
 end
 
 function contains(nout::Array{Float,1}, r₀::Array{Float,1}, pt::Array{Float,1}, isinclusive)
@@ -155,7 +147,7 @@ function rvol_tricyl(box, cepts, hascept_in, r::Int, sv::Array{Array{Int,1},1})
 
     sv1, sv2 = sv
 
-    axes = setdiff(AXES, r)  # axes normal to cylinder axis
+    axes = [r%3+1, (r+1)%3+1]  # axes normal to cylinder axis
     !all(hascept_in[sv1...,axes]) && throw(ArgumentError("All edges in $axes-direction from vertex indexed by $sv1 should cross plane."))
     !all(hascept_in[sv2...,axes]) && throw(ArgumentError("All edges in $axes-direction from vertex indexed by $sv2 should cross plane."))
 
@@ -164,7 +156,7 @@ function rvol_tricyl(box, cepts, hascept_in, r::Int, sv::Array{Array{Int,1},1})
     cepts[eind1[1]...] ≠ cepts[eind2[1]...] && throw(ArgumentError("Edges in $(axes[1])-direction from vertices indexed by $sv1 and $sv2 should have same intercept location."))
     cepts[eind1[2]...] ≠ cepts[eind2[2]...] && throw(ArgumentError("Edges in $(axes[2])-direction from vertices indexed by $sv1 and $sv2 should have same intercept location."))
 
-    ∆w = diff(box,2)[axes]
+    ∆w = (box[:,2]-box[:,1])[axes]
     d = [abs(cepts[eind1[w]...] - box[w,sv1[w]]) for w = axes]
 
     return prod(d./∆w)/2.
@@ -183,9 +175,10 @@ function rvol_quadcyl(box, cepts, hascept_in, r::Int, sv::Array{Array{Int,1},1})
     p = p[1]
     p == r && throw(ArgumentError("Face containing vertices indexed by sv = $sv should be parallel to r = $r-direction."))
 
-    q = setdiff(AXES, [p,r])  # direction (other than r) in plane of four vertices
-    sv1 = sv[1]  # pick any one vertex contained in half space
+    q = p%3+1
+    if q==r; q = q%3+1; end  # direction (other than r) in plane of four vertices
 
+    sv1 = sv[1]  # pick any one vertex contained in half space
     sv2 = copy(sv[1])
     sv2[q] = 3 - sv1[q]  # vertex in q-directino from sv1  (if sv1[q] == N, then sv2[q] == P, and vice versa)
     length(find(sv.==[sv2])) ≠ 1 && throw(ArgumentError("sv = $sv should contain $sv2 once and only once."))
@@ -193,7 +186,7 @@ function rvol_quadcyl(box, cepts, hascept_in, r::Int, sv::Array{Array{Int,1},1})
     ep1 = VE2E[sv1..., p]
     ep2 = VE2E[sv2..., p]
 
-    ∆p = diff(box,2)[p]
+    ∆p = box[p,2] - box[p,1]
     a1 = abs(cepts[ep1...] - box[p,sv1[p]])
     a2 = abs(cepts[ep2...] - box[p,sv2[p]])
 
@@ -205,7 +198,7 @@ sg2(x) = 1 .+ x .+ x.^2
 function get_rs(box, cepts, sv1::Array{Int,1})
     eind = VE2E[sv1...,:]  # indices of three edges from vertex sv1
 
-    ∆w = diff(box,2)[:,1]
+    ∆w = box[:,2] - box[:,1]
     d = [abs(cepts[eind[w]...] - box[w,sv1[w]]) for w = AXES]
     r = d ./ ∆w
     r_ = 1. - ∆w./d
@@ -226,8 +219,8 @@ function rvol_gensect(box, cepts, hascept_in, sv1::Array{Int,1})
     Nncr = length(xncr)  # number of edges not crossing plane
     rvol = 0.
     for w = xncr
-        cw = setdiff(AXES, w)  # complementary of w
-        rvol += prod(r[cw]) * sg2r_[w] / 6.
+        u, v = w%3+1, (w+1)%3+1  # complementary of w
+        rvol += r[u]*r[v]*sg2r_[w] / 6.
     end
 
     rvol += (1-Nncr) * prod(r) / 6.
@@ -243,7 +236,7 @@ function rvol_quadsect(box, cepts, hascept_in, sv1::Array{Int,1})
     sum(icr) ≠ 1 && throw(ArgumentError("One and only one edge from vertex indexed by sv1 = $sv1 should cross plane."))
 
     r = AXES[icr][1]  # axis normal to face that do not cross plane
-    ∆r = diff(box[r,:])[1]
+    ∆r = box[r,2] - box[r,1]
 
     return sum(abs(cepts[r,:,:] - box[r,sv1[r]])) / 4∆r
 end
@@ -277,8 +270,8 @@ function volfrac(box, nout, r₀, verbose = false)
     v = vertices(box)
     Nci = length(find(contains(nout, r₀, v, true)))  # number of vertices contained in half-space, including boundary plane
     Nnci = length(find(contains(-nout, r₀, v, true)))  # number of vertices contained in half-space (≈ not contained (nc) in half space), including boundary plane
-    svc = [[ind2sub((2,2,2), li)...] for li = find(contains(nout, r₀, v, false))]  # array of signs [sx,sy,sz] of vertices contained in half-space, excluding boundary plane
-    svnc = [[ind2sub((2,2,2), li)...] for li = find(contains(-nout, r₀, v, false))]  # array of signs [sx,sy,sz] of vertices contained in the other half-space (≈ not contained (nc) in half space) excluding boundary plane
+    svc = VI2VS[find(contains(nout, r₀, v, false))]  # array of signs [sx,sy,sz] of vertices contained in half-space, excluding boundary plane
+    svnc = VI2VS[find(contains(-nout, r₀, v, false))]  # array of signs [sx,sy,sz] of vertices contained in the other half-space (≈ not contained (nc) in half space) excluding boundary plane
     Nc = length(svc)  # number of vertices contained in half-space, excluding boundary plane
     Nnc = length(svnc)  # number of vertices contained in the other half-space (≈ not contained (nc) in half space), excluding boundary plane
 
@@ -321,18 +314,18 @@ function volfrac(box, nout, r₀, verbose = false)
 
     # Find two vertices whose all three edges, when extended in the direction
     # from the vertex, cross the plane.
-    Ncept_ex = squeeze(sum(hascept_ex, 4), 4)  # number of each vertex's edges that cross plane when extended
-    sv1, sv2 = [[ind2sub((2,2,2), li)...] for li = find(Ncept_ex .== 3)]  # signs [sx,sy,sz] of vertices whose edges cross plane three times when extended
+    Ncept_ex = sum(hascept_ex, 4)[:,:,:,1]  # number of each vertex's edges that cross plane when extended
+    sv1, sv2 = VI2VS[find(Ncept_ex .== 3)]  # signs [sx,sy,sz] of vertices whose edges cross plane three times when extended
     assert(all(sv1+sv2 .== 3))  # sv1 and sv2 are body-diagonally opposite
 
     # Between sv1 and sv2, make sv1 the vertex with more edges crossing the
     # plane without extension.
-    Ncept_in = squeeze(sum(hascept_in, 4), 4)  # number of each vertex's edges that cross plane
+    Ncept_in = sum(hascept_in, 4)[:,:,:,1]  # number of each vertex's edges that cross plane
     N1 = Ncept_in[sv1...]
     N2 = Ncept_in[sv2...]
     if N1 < N2
-        (sv1, sv2) = (sv2, sv1)
-        (N1, N2) = (N2, N1)
+        sv1, sv2 = sv2, sv1
+        N1, N2 = N2, N1
     end
 
     # Determine the shape of the plane-box intersection from N1 and N2, and calculate
