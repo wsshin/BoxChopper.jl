@@ -19,13 +19,13 @@ const VE2E = [(
 
 const VI2VS = [[ind2sub((2,2,2),li)...] for li = 1:8]  # vertex index to subscripts
 
-function floatize_box{T<:Real}(box::Array{T,2})
+function floatize_box{T<:Real}(box::AbstractMatrix{T})
     # box: [xn xp; yn yp; zn zp] (boundary locations of box)
     size(box) ≠ (3,2) && throw(ArgumentError("box = $box should be size-(3,3)."))
     return T==Float ? box : float(box)
 end
 
-function floatize_plane{T<:Real,S<:Real}(nout::Array{T,1}, r₀::Array{S,1})
+function floatize_plane{T<:Real,S<:Real}(nout::AbstractVector{T}, r₀::AbstractVector{S})
     # nout: [nx, ny, nz] (outward normal of plane)
     # r₀: [x₀, y₀, z₀] (point on plane)
     # plane equation: p(r) = nout' * (r - r₀) = 0 (p > 0: nout portion, p < 0: -nout portion)
@@ -127,18 +127,18 @@ function vertices(box)
             box[X,P] box[Y,P] box[Z,P]]
 end
 
-function contains(nout::Array{Float,1}, r₀::Array{Float,1}, pt::Array{Float,2}, isinclusive)
+function contains(nout::AbstractVector{Float}, r₀::AbstractVector{Float}, pt::AbstractMatrix{Float}, isinclusive::Bool)
     # Tells if pt is contained in the half-space whose outward normal is nout.
     size(pt)[2] ≠ 3 && throw(ArgumentError("pt = $pt should have three columns."))
     return (isinclusive ? (.≤) : (.<))(broadcast(-, pt, transpose(r₀)) * nout, 0.)
 end
 
-function contains(nout::Array{Float,1}, r₀::Array{Float,1}, pt::Array{Float,1}, isinclusive)
+function contains(nout::AbstractVector{Float}, r₀::AbstractVector{Float}, pt::AbstractVector{Float}, isinclusive::Bool)
     length(pt) ≠ 3 && throw(ArgumentError("pt = $pt should be length-3."))
     return (isinclusive ? (≤) : (<))((pt-r₀)⋅nout, 0.)
 end
 
-function rvol_tricyl(box, cepts, hascept_in, r::Int, sv::Array{Array{Int,1},1})
+function rvol_tricyl(box, cepts, hascept_in, r::Int, sv::AbstractVector{AbstractVector{Int}})
     # Return the volume fraction of the triangular cylinder in the box.
     # r: cylinder axis (one of X, Y, Z)
     # sv: array of signs [sx,sy,sz] of vertices
@@ -162,7 +162,7 @@ function rvol_tricyl(box, cepts, hascept_in, r::Int, sv::Array{Array{Int,1},1})
     return prod(d./∆w)/2.
 end
 
-function rvol_quadcyl(box, cepts, hascept_in, r::Int, sv::Array{Array{Int,1},1})
+function rvol_quadcyl(box, cepts, hascept_in, r::Int, sv::AbstractVector{AbstractVector{Int}})
     # Return the volume fraction of the quadrangular cylinder in the box.
     # r: cylinder axis (one of X, Y, Z)
     # sv: array of signs [sx,sy,sz] of vertices
@@ -195,7 +195,7 @@ end
 
 sg2(x) = 1 .+ x .+ x.^2
 
-function get_rs(box, cepts, sv1::Array{Int,1})
+function get_rs(box, cepts, sv1::AbstractVector{Int})
     eind = VE2E[sv1...,:]  # indices of three edges from vertex sv1
 
     ∆w = box[:,2] - box[:,1]
@@ -207,7 +207,7 @@ function get_rs(box, cepts, sv1::Array{Int,1})
     return (r, sg2r_)
 end
 
-function rvol_gensect(box, cepts, hascept_in, sv1::Array{Int,1})
+function rvol_gensect(box, cepts, hascept_in, sv1::AbstractVector{Int})
     # Calculate the volume fraction of most general cases, by cutting out corners
     # from a triangular pyramid.
     # sv1: signs [sx,sy,sz] of vertex
@@ -228,7 +228,7 @@ function rvol_gensect(box, cepts, hascept_in, sv1::Array{Int,1})
     return rvol
 end
 
-function rvol_quadsect(box, cepts, hascept_in, sv1::Array{Int,1})
+function rvol_quadsect(box, cepts, hascept_in, sv1::AbstractVector{Int})
     # Return the volume fraction for the case where the plane croses four parallel edges.
     # sv1: signs [sx,sy,sz] of vertex
 
@@ -259,7 +259,7 @@ the relative positions and directions of the box and the plane.  The optional Ar
 `verbose` prints out which of these functions was used.  The default value of `verbose`
 is `false`, meaning that it does not print out the information.
 """
-function volfrac(box, nout, r₀, verbose = false)
+function volfrac(box, nout, r₀, verbose::Bool = false)
     # Return the volume fraction rvol = vol(box ⋂ half-space) / vol(box).
 
     box = floatize_box(box)
