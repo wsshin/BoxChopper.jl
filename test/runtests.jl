@@ -72,6 +72,7 @@ const Float = typeof(0.0)
         nout = [1, 1, 0]
 
         @test (r₀ = [0.5, 0., 0.]; volfrac(box, nout, r₀) ≈ 0.125)
+        @test (r₀ = [0.5, 0., 0.]; volfrac(box, -nout, r₀) ≈ 0.875)
         @test (r₀ = [1., 0., 0.]; volfrac(box, nout, r₀) ≈ 0.5)
         @test (r₀ = [1., 0., 0.]; nout = [1., 2., 0.]; volfrac(box, nout, r₀) ≈ 0.25)
     end
