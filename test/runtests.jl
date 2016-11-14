@@ -98,10 +98,21 @@ const Float = typeof(0.0)
         @test begin
             result = true
             for i = 1:100
-                box = sort(rand(3,2), 2)
+                box = sort(randn(3,2), 2)
                 r₀ = mean(box, 2)[:,1]
                 nout = randn(3)
                 result &= volfrac(box, nout, r₀) ≈ 0.5
+            end
+            result
+        end
+
+        @test begin
+            result = true
+            for i = 1:100
+                box = sort(randn(3,2), 2)
+                r₀ = randn(3)
+                nout = randn(3)
+                result &= (volfrac(box, nout, r₀, true) + volfrac(box, -nout, r₀) ≈ 1.)
             end
             result
         end
