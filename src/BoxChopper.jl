@@ -15,11 +15,7 @@ const SIGNS = [N, P]
 
 # If VE2E[sx,sy,sz,w] = [w,su,sv], then the edge corresponding to hascept[sx,sy,sz,w]
 # is the same as the edge corresponding to cepts[w,su,sv].
-const VE2E = [(
-    s = [sx,sy,sz];
-    (w, s[w%3+1], s[(w+1)%3+1])
-) for sx = SIGNS, sy = SIGNS, sz = SIGNS, w = AXES]
-
+const VE2E = [(s = (sx,sy,sz); (w, s[w%3+1], s[(w+1)%3+1])) for sx = SIGNS, sy = SIGNS, sz = SIGNS, w = AXES]
 const VI2VS = [ind2sub((2,2,2),li) for li = 1:8]  # vertex index to subscripts
 
 typealias AbsVec AbstractVector
