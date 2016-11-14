@@ -141,16 +141,16 @@ function rvol_tricyl(box, cepts, hascept_in, r::Int, sv::AbsVec{Tuple3Int})
     sv1::Tuple3Int, sv2::Tuple3Int = sv[1], sv[2]
 
     p, q = r%3+1, (r+1)%3+1  # axes normal to cylinder axis
-    !all(hascept_in[sv1...,[p,q]]) && throw(ArgumentError("All edges in $axes-direction from vertex indexed by $sv1 should cross plane."))
-    !all(hascept_in[sv2...,[p,q]]) && throw(ArgumentError("All edges in $axes-direction from vertex indexed by $sv2 should cross plane."))
+    !all(hascept_in[sv1...,[p,q]]) && throw(ArgumentError("$p-, $q-directional edges from vertex indexed by $sv1 should cross plane."))
+    !all(hascept_in[sv2...,[p,q]]) && throw(ArgumentError("$p-, $q-directional edges from vertex indexed by $sv2 should cross plane."))
 
     eind1::Array{Tuple3Int,1} = VE2E[sv1...,[p,q]]  # indices of r-normal edges from vertex sv1
     eind2::Array{Tuple3Int,1} = VE2E[sv2...,[p,q]]  # indices of r-normal edges from vertex sv2
-    cepts[eind1[1]...] ≠ cepts[eind2[1]...] && throw(ArgumentError("Edges in $(axes[1])-direction from vertices indexed by $sv1 and $sv2 should have same intercept location."))
-    cepts[eind1[2]...] ≠ cepts[eind2[2]...] && throw(ArgumentError("Edges in $(axes[2])-direction from vertices indexed by $sv1 and $sv2 should have same intercept location."))
+    cepts[eind1[1]...] ≠ cepts[eind2[1]...] && throw(ArgumentError("$p-directional edges from vertices indexed by $sv1 and $sv2 should have same intercept location."))
+    cepts[eind1[2]...] ≠ cepts[eind2[2]...] && throw(ArgumentError("$q-directional edges from vertices indexed by $sv1 and $sv2 should have same intercept location."))
 
     ∆w = (box[:,2]-box[:,1])[[p,q]]
-    d = [abs(cepts[eind1[w]...] - box[w,sv1[w]]) for w = [p,q]]
+    d = [abs(cepts[eind1[w]...] - box[w,sv2[w]]) for w = [p,q]]
 
     return prod(d./∆w)/2.
 end
