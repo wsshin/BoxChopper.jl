@@ -112,7 +112,7 @@ const Float = typeof(0.0)
                 box = sort(randn(3,2), 2)
                 r₀ = randn(3)
                 nout = randn(3)
-                result &= (volfrac(box, nout, r₀, true) + volfrac(box, -nout, r₀) ≈ 1.)
+                result &= (volfrac(box, nout, r₀) + volfrac(box, -nout, r₀) ≈ 1.)
             end
             result
         end
