@@ -2,8 +2,8 @@ module BoxChopper
 
 import Base.contains
 export volfrac  # function
-export X, Y, Z, N, P, AXES, SIGNS, VE2E, VI2VS
-export edgecepts, contains, vertices, rvol_tricyl, rvol_quadcyl, sg2, get_rs, rvol_gensect, rvol_quadsect
+# export X, Y, Z, N, P, AXES, SIGNS, VE2E, VI2VS
+# export edgecepts, contains, vertices, rvol_tricyl, rvol_quadcyl, sg2, get_rs, rvol_gensect, rvol_quadsect
 
 const Float = typeof(0.)
 const Nv = 8  # number of vertices of box
@@ -92,7 +92,7 @@ function edgecepts(box, nout, r₀)
     hascept_in = [(
         s = (sx,sy,sz);
         (u, v) = (w%3+1, (w+1)%3+1);
-        flsw = s[w]%2+1;  # flipped sign sw
+        flsw = 3-s[w];  # flipped sign sw
         hascept_ex[s...,w] && (s[w]==N ? cepts[w,s[u],s[v]]≤box[w,flsw] : cepts[w,s[u],s[v]]≥box[w,flsw])
     ) for sx = SIGNS, sy = SIGNS, sz = SIGNS, w = AXES]  # does edge cross plane?
 
@@ -136,21 +136,25 @@ function rvol_tricyl(box, cepts, hascept_in, r::Int, sv::AbsVec{Tuple3Int})
     # r: cylinder axis (one of X, Y, Z)
     # sv: array of signs [sx,sy,sz] of vertices
 
-    length(sv) ≠ 2 && throw(ArgumentError("sv = $sv should be length-2."))
+    # length(sv) ≠ 2 && throw(ArgumentError("sv = $sv should be length-2."))
 
-    sv1::Tuple3Int, sv2::Tuple3Int = sv[1], sv[2]
+    sv1, sv2 = sv[1], sv[2]
 
     p, q = r%3+1, (r+1)%3+1  # axes normal to cylinder axis
-    !all(hascept_in[sv1...,[p,q]]) && throw(ArgumentError("$p-, $q-directional edges from vertex indexed by $sv1 should cross plane."))
-    !all(hascept_in[sv2...,[p,q]]) && throw(ArgumentError("$p-, $q-directional edges from vertex indexed by $sv2 should cross plane."))
+    # !all(hascept_in[sv1...,[p,q]]) && throw(ArgumentError("$p-, $q-directional edges from vertex indexed by $sv1 should cross plane."))
+    # !all(hascept_in[sv2...,[p,q]]) && throw(ArgumentError("$p-, $q-directional edges from vertex indexed by $sv2 should cross plane."))
 
-    eind1::Array{Tuple3Int,1} = VE2E[sv1...,[p,q]]  # indices of r-normal edges from vertex sv1
-    eind2::Array{Tuple3Int,1} = VE2E[sv2...,[p,q]]  # indices of r-normal edges from vertex sv2
-    cepts[eind1[1]...] ≠ cepts[eind2[1]...] && throw(ArgumentError("$p-directional edges from vertices indexed by $sv1 and $sv2 should have same intercept location."))
-    cepts[eind1[2]...] ≠ cepts[eind2[2]...] && throw(ArgumentError("$q-directional edges from vertices indexed by $sv1 and $sv2 should have same intercept location."))
+    eind1 = VE2E[sv1...,[p,q]]  # indices of r-normal edges from vertex sv1
+    eind2 = VE2E[sv2...,[p,q]]  # indices of r-normal edges from vertex sv2
+    # cepts[eind1[1]...] ≠ cepts[eind2[1]...] && throw(ArgumentError("$p-directional edges from vertices indexed by $sv1 and $sv2 should have same intercept location."))
+    # cepts[eind1[2]...] ≠ cepts[eind2[2]...] && throw(ArgumentError("$q-directional edges from vertices indexed by $sv1 and $sv2 should have same intercept location."))
 
     ∆w = (box[:,2]-box[:,1])[[p,q]]
-    d = [abs(cepts[eind1[w]...] - box[w,sv2[w]]) for w = [p,q]]
+
+    d = Vector{Float}(2)
+    d[1] = abs(cepts[eind1[p]...] - box[p,sv1[p]])
+    d[2] = abs(cepts[eind1[q]...] - box[q,sv1[q]])
+    # d = [abs(cepts[eind1[w]...] - box[w,sv1[w]]) for w = [p,q]]
 
     return prod(d./∆w)/2.
 end
@@ -160,20 +164,24 @@ function rvol_quadcyl(box, cepts, hascept_in, r::Int, sv::AbsVec{Tuple3Int})
     # r: cylinder axis (one of X, Y, Z)
     # sv: array of signs [sx,sy,sz] of vertices
 
-    length(sv) ≠ 4 && throw(ArgumentError("sv = $sv should be length-4."))
+    # length(sv) ≠ 4 && throw(ArgumentError("sv = $sv should be length-4."))
 
     ps = find(map((a,b,c,d)->a==b==c==d, sv[1], sv[2], sv[3], sv[4]))  # direction normal to plane of four vertices
-    length(ps) ≠ 1 && throw(ArgumentError("Vertices indexed by sv = $sv should be on same face."))
+    # length(ps) ≠ 1 && throw(ArgumentError("Vertices indexed by sv = $sv should be on same face."))
 
     p = ps[1]
-    p == r && throw(ArgumentError("Face containing vertices indexed by sv = $sv should be parallel to r = $r-direction."))
+    # p == r && throw(ArgumentError("Face containing vertices indexed by sv = $sv should be parallel to r = $r-direction."))
 
-    q = p%3+1
-    if q==r; q = q%3+1; end  # direction (other than r) in plane of four vertices
+    q = sum(AXES) - p - r  # direction (other than r) in plane of four vertices
 
-    sv1::Tuple3Int = sv[1]  # pick any one vertex contained in half space
-    sv2::Tuple3Int = ([w==q ? 3-sv1[w] : sv1[w] for w = AXES]...)  # vertex in q-directino from sv1 (if sv1[q] == N, then sv2[q] == P, and vice versa)
-    length(find(sv.==sv2)) ≠ 1 && throw(ArgumentError("sv = $sv should contain $sv2 once and only once."))
+    sv1 = sv[1]  # pick any one vertex contained in half space
+
+    ind2s = find(sv2->(sv2[r]==sv1[r] && sv2[q]==sum(SIGNS)-sv1[q]), sv)
+    # length(ind2s) ≠ 1 && throw(ArgumentError("sv = $sv should contain one and only one entry whose $r-component = $(sv1[r]) and $q-component = $(sum(SIGNS)-sv1[q])."))
+    ind2 = ind2s[1]
+    sv2 = sv[ind2]
+    # sv2 = ([w==q ? sum(SIGNS)-sv1[w] : sv1[w] for w = AXES]...)  # vertex in q-direction from sv1 (if sv1[q] == N, then sv2[q] == P, and vice versa)
+    # length(find(sv.==sv2)) ≠ 1 && throw(ArgumentError("sv = $sv should contain $sv2 once and only once."))
 
     ep1 = VE2E[sv1..., p]
     ep2 = VE2E[sv2..., p]
@@ -308,15 +316,15 @@ function volfrac(box, nout, r₀, verbose::Bool = false)
     # Find two vertices whose all three edges, when extended in the direction
     # from the vertex, cross the plane.
     Ncept_ex = sum(hascept_ex, 4)[:,:,:,1]  # number of each vertex's edges that cross plane when extended
-    indc = find(Ncept_ex .== 3)
+    indc = find(Ncept_ex .== 3)  # linear indices of vertices that form right-angled corners of triangular pyramid
     assert(length(indc) == 2)  # there should be only two vertices whose all three edges cross plane when extended
-    sv1::Tuple3Int, sv2::Tuple3Int = VI2VS[indc[1]], VI2VS[indc[2]]
+    sv1, sv2 = VI2VS[indc[1]], VI2VS[indc[2]]
     assert(all(map(x->x==3, map(+,sv1,sv2))))  # sv1 and sv2 are body-diagonally opposite
     # assert(all(sv1+sv2 .== 3))  # sv1 and sv2 are body-diagonally opposite
 
     # Between sv1 and sv2, make sv1 the vertex with more edges crossing the
     # plane without extension.
-    Ncept_in::Array{Int,3} = sum(hascept_in, 4)[:,:,:,1]  # number of each vertex's edges that cross plane
+    Ncept_in = sum(hascept_in, 4)[:,:,:,1]  # number of each vertex's edges that cross plane
     N1 = Ncept_in[sv1...]
     N2 = Ncept_in[sv2...]
     if N1 < N2
@@ -349,7 +357,8 @@ function volfrac(box, nout, r₀, verbose::Bool = false)
     # the cross sectional shape by using this vertex information instead of counting
     # the number of edges crossing the plane!
 
-    v1 = [box[w,sv1[w]] for w = AXES]
+    v1 = [box[X,sv1[X]], box[Y,sv1[Y]], box[Z,sv1[Z]]]
+    # v1 = [box[w,sv1[w]] for w = AXES]
     assert((v1-r₀)⋅nout ≠ 0.)
     needflip = !contains(nout, r₀, v1, false)
     if N2 == 0  # cross section is hexagon | pentagon | quadrangle (with plane crossing two pairs of joining edges) || triangle
