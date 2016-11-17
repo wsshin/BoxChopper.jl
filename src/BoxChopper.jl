@@ -56,10 +56,9 @@ function edgedir_quadsect(vcbits::UInt8)
         return Z
     elseif vcbits==0x33 || vcbits==~0x33
         return Y
-    elseif vcbits==0x55 || vcbits==~0x55
-        return X
     else
-        throw(ArgumentError("vcbits = $(bits(vcbits)) should correspond to quadrangular cross section."))
+        assert(vcbits==0x55 || vcbits==~0x55)
+        return X
     end
 end
 
