@@ -124,16 +124,9 @@ function volfrac{T<:Real,S<:Real,R<:Real}(box::AbsMat{T}, nout::AbsVec{S}, r₀:
 
     if isquadsect(vcbits); return rvol_quadsect(box, nout, nr₀, vcbits); end
 
-    needflip = false
-    if nvc ≥ 5
-        needflip = true
-        nout = -nout
-        nr₀ = -nr₀
-        vcbits = ~vcbits
-        nvc = 8-nvc
-    end
+    needflip = nvc ≥ 5
 
-    return needflip ? 1 - rvol_gensect(box, nout, nr₀, vcbits) : rvol_gensect(box, nout, nr₀, vcbits)
+    return needflip ? 1 - rvol_gensect(box, -nout, -nr₀, ~vcbits) : rvol_gensect(box, nout, nr₀, vcbits)
 end
 
 end  # module PlanarBoxDivider
