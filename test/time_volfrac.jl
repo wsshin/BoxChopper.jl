@@ -7,4 +7,8 @@ nout = randn(3)
 
 volfrac(box, nout, r₀)  # execute this to initiate compilation
 
-@time volfrac(box, nout, r₀)
+@time begin
+    for i = 1:100^3
+        volfrac(box, nout, r₀)
+    end
+end
