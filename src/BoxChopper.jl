@@ -94,7 +94,7 @@ function rvol_gensect{T<:Real,S<:Real}(box::AbsMat{T}, nout::AbsVec{S}, nr₀::R
     cx, cy, cz = box[X,sx], box[Y,sy], box[Z,sz]  # corner coordinates
     ∆x, ∆y, ∆z = box[X,P]-box[X,N], box[Y,P]-box[Y,N], box[Z,P]-box[Z,N]  # box edges
     nxcx, nycy, nzcz = nx*cx, ny*cy, nz*cz
-    r = [abs((nr₀-nycy-nzcz)/nx-cx)/∆x, abs((nr₀-nzcz-nxcx)/ny-cy)/∆y, abs((nr₀-nxcx-nycy)/nz-cz)/∆z]  # length from corner to intercetps / box edges
+    r = [abs((nr₀-nycy-nzcz)/nx-cx)/∆x, abs((nr₀-nzcz-nxcx)/ny-cy)/∆y, abs((nr₀-nxcx-nycy)/nz-cz)/∆z]  # (lengths from corner to intercetps) / (box edges)
 
     sort!(r)
     t3 = 1 - 1/r[3]
