@@ -25,15 +25,11 @@ function calc_vcbits{T<:Real,S<:Real}(box::AbsMat{T}, nout::AbsVec{S}, nr₀::Re
     nx, ny, nz = nout
     vcbits = 0x00
     bit = 0x01
-    for sz = NP
-        for sy = NP
-            for sx = NP
-                if nx*box[X,sx] + ny*box[Y,sy] + nz*box[Z,sz] ≤ nr₀
-                    vcbits |= bit
-                end
-                bit <<= 1
-            end
+    for sz = NP, sy = NP, sx = NP
+        if nx*box[X,sx] + ny*box[Y,sy] + nz*box[Z,sz] ≤ nr₀
+            vcbits |= bit
         end
+        bit <<= 1
     end
 
     return vcbits
@@ -42,7 +38,10 @@ end
 function isquadsect(vcbits::UInt8)
     # Determine if the vertex contained-ness bit array corresponds to the case where
     # the plane crosses one of the three sets of four parallel edges of the box.
+
     return vcbits==0x0F || vcbits==~0x0F || vcbits==0x33 || vcbits==~0x33 || vcbits==0x55 || vcbits==~0x55
+
+    # Equivalent to
     # n = count_ones(vcbits)
     # m = count_ones(vcbits & 0x0F)
     # return n==4 && iseven(m)
@@ -72,10 +71,8 @@ function rvol_quadsect{T<:Real,S<:Real}(box::AbsMat{T}, nout::AbsVec{S}, nr₀::
     ~, u, v = CYC_AXES[w]
     nw, nu, nv = nout[w], nout[u], nout[v]
     mean_cepts = 4nr₀
-    for sv = NP
-        for su = NP
-            mean_cepts -= nu*box[u,su] + nv*box[v,sv]
-        end
+    for sv = NP, su = NP
+        mean_cepts -= nu*box[u,su] + nv*box[v,sv]
     end
     mean_cepts /=  nw * 4∆w
 
@@ -94,7 +91,9 @@ function rvol_gensect{T<:Real,S<:Real}(box::AbsMat{T}, nout::AbsVec{S}, nr₀::R
     cx, cy, cz = box[X,sx], box[Y,sy], box[Z,sz]  # corner coordinates
     ∆x, ∆y, ∆z = box[X,P]-box[X,N], box[Y,P]-box[Y,N], box[Z,P]-box[Z,N]  # box edges
     nxcx, nycy, nzcz = nx*cx, ny*cy, nz*cz
-    r = [abs((nr₀-nycy-nzcz)/nx-cx)/∆x, abs((nr₀-nzcz-nxcx)/ny-cy)/∆y, abs((nr₀-nxcx-nycy)/nz-cz)/∆z]  # (lengths from corner to intercetps) / (box edges)
+    r = [abs((nr₀-nycy-nzcz)/nx-cx)/∆x,
+        abs((nr₀-nzcz-nxcx)/ny-cy)/∆y,
+        abs((nr₀-nxcx-nycy)/nz-cz)/∆z]  # (lengths from corner to intercetps) / (box edges)
 
     sort!(r)
     t3 = 1 - 1/r[3]
