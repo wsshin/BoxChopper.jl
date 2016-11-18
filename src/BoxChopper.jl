@@ -2,14 +2,12 @@ module BoxChopper
 
 export volfrac  # function
 
-const Float = typeof(0.)
-
 const N, P = 1, 2  # negative, positive directions
-const NP = [N,P]  # array is faster to construct than tuple
+const NP = (N,P)  # tuple allocation is more efficient than array allocation
 
 const X, Y, Z = 1, 2, 3  # x, y, z coordinates
-const XYZ, YZX, ZXY = [X,Y,Z], [Y,Z,X], [Z,X,Y]
-const CYC_AXES = [XYZ, YZX, ZXY]
+const XYZ, YZX, ZXY = (X,Y,Z), (Y,Z,X), (Z,X,Y)
+const CYC_AXES = (XYZ, YZX, ZXY)
 
 typealias AbsVec AbstractVector
 typealias AbsMat AbstractMatrix
@@ -52,13 +50,15 @@ function edgedir_quadsect(vcbits::UInt8)
     # box, determine which direction those edges lie.
 
     if vcbits==0x0F || vcbits==~0x0F
-        return Z
+        dir = Z
     elseif vcbits==0x33 || vcbits==~0x33
-        return Y
+        dir = Y
     else
         assert(vcbits==0x55 || vcbits==~0x55)
-        return X
+        dir = X
     end
+
+    return dir
 end
 
 function rvol_quadsect{T<:Real,S<:Real}(box::AbsMat{T}, nout::AbsVec{S}, nr₀::Real, vcbits::UInt8)
@@ -130,15 +130,20 @@ function volfrac{T<:Real,S<:Real,R<:Real}(box::AbsMat{T}, nout::AbsVec{S}, r₀:
     vcbits = calc_vcbits(box, nout, nr₀)
     nvc = count_ones(vcbits)  # number of vertices contained
 
-    if nvc == 8; return 1.; end  # box is inside half-space
-    if nvc == 0; return 0.; end  # box is outside half-space
+    if nvc == 8  # box is inside half-space
+        rvol = 1.
+    elseif nvc == 0  # box is outside half-space
+        rvol = 0.
+    elseif isquadsect(vcbits) # plane crosses a set of four parallel edges of box
+        rvol = rvol_quadsect(box, nout, nr₀, vcbits)
+    elseif nvc ≤ 4 # general cases with nvc ≤ 4
+        rvol = rvol_gensect(box, nout, nr₀, vcbits)
+    else  # general cases with nvc ≥ 5
+        assert(nvc ≥ 5)
+        rvol = 1. - rvol_gensect(box, -nout, -nr₀, ~vcbits)
+    end
 
-    # Handle the cases where the plane crosses a set of four parallel edges of the box.
-    if isquadsect(vcbits); return rvol_quadsect(box, nout, nr₀, vcbits); end
-
-    # Handle all the other cases.
-    needflip = nvc ≥ 5
-    return needflip ? 1. - rvol_gensect(box, -nout, -nr₀, ~vcbits) : rvol_gensect(box, nout, nr₀, vcbits)
+    return rvol
 end
 
 end  # module PlanarBoxDivider
