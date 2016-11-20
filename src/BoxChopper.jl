@@ -91,23 +91,28 @@ function rvol_gensect{T<:Real,S<:Real}(box::AbsMat{T}, nout::AbsVec{S}, nr₀::R
     cx, cy, cz = box[X,sx], box[Y,sy], box[Z,sz]  # corner coordinates
     ∆x, ∆y, ∆z = box[X,P]-box[X,N], box[Y,P]-box[Y,N], box[Z,P]-box[Z,N]  # box edges
     nxcx, nycy, nzcz = nx*cx, ny*cy, nz*cz
-    r = [abs((nr₀-nycy-nzcz)/nx-cx)/∆x,
-        abs((nr₀-nzcz-nxcx)/ny-cy)/∆y,
-        abs((nr₀-nxcx-nycy)/nz-cz)/∆z]  # (lengths from corner to intercetps) / (box edges)
 
-    sort!(r)
-    t3 = 1 - 1/r[3]
-    rvol_core = 1 + t3 + t3^2
-    if r[2] > 1
-        t2 = 1 - 1/r[2]
-        rvol_core -= r[3] * t2^3
+    rmax, rmid, rmin =  # (lengths from corner to intercetps) / (box edges)
+        abs((nr₀-nycy-nzcz)/nx-cx)/∆x, abs((nr₀-nzcz-nxcx)/ny-cy)/∆y, abs((nr₀-nxcx-nycy)/nz-cz)/∆z
+
+    # Sort rmax, rmin, rmin properly.
+    if rmax < rmid; rmax, rmid = rmid, rmax; end
+    if rmid < rmin; rmid, rmin = rmin, rmid; end
+    if rmax < rmid; rmax, rmid = rmid, rmax; end
+
+    # Calculate the volume of the triangular pyramid, and cut off appropriate corners.
+    tmax = 1 - 1/rmax
+    rvol_core = 1 + tmax + tmax^2
+    if rmid > 1
+        tmid = 1 - 1/rmid
+        rvol_core -= rmax * tmid^3
     end
-    if r[1] > 1
-        t1 = 1 - 1/r[1]
-        rvol_core -= r[3] * t1^3
+    if rmin > 1
+        tmin = 1 - 1/rmin
+        rvol_core -= rmax * tmin^3
     end
 
-    return rvol_core * r[1] * r[2] / 6
+    return rvol_core * rmin * rmid / 6
 end
 
 """
