@@ -145,7 +145,7 @@ function volfrac(box::Tuple3{Tuple2{Real}}, nout::Tuple3{Real}, r₀::Tuple3{Rea
         rvol = rvol_gensect(box, nout, nr₀, vcbits)
     else  # general cases with nvc ≥ 5
         assert(nvc ≥ 5)
-        rvol = 1. - rvol_gensect(box, (-).(nout), (-).(nr₀), ~vcbits)
+        rvol = 1. - rvol_gensect(box, (-nout[1],-nout[2],-nout[3]), -nr₀, ~vcbits)
     end
 
     return rvol

@@ -9,11 +9,11 @@ const Float = typeof(0.0)
         nout = (1,1,0)
 
         @test (r₀ = (0.5,0,0); volfrac(box, nout, r₀) ≈ 0.125)
-        @test (r₀ = (0.5,0,0); volfrac(box, (-).(nout), r₀) ≈ 0.875)
+        @test (r₀ = (0.5,0,0); volfrac(box, (-nout[1],-nout[2],-nout[3]), r₀) ≈ 0.875)
         @test (r₀ = (1,0,0); volfrac(box, nout, r₀) ≈ 0.5)
-        @test (r₀ = (1,0,0); volfrac(box, (-).(nout), r₀) ≈ 0.5)
+        @test (r₀ = (1,0,0); volfrac(box, (-nout[1],-nout[2],-nout[3]), r₀) ≈ 0.5)
         @test (r₀ = (1,0,0); nout = (1,2,0); volfrac(box, nout, r₀) ≈ 0.25)
-        @test (r₀ = (1,0,0); nout = (1,2,0); volfrac(box, (-).(nout), r₀) ≈ 0.75)
+        @test (r₀ = (1,0,0); nout = (1,2,0); volfrac(box, (-nout[1],-nout[2],-nout[3]), r₀) ≈ 0.75)
     end
 
     @testset "quadrangular cylinder" begin
@@ -21,7 +21,7 @@ const Float = typeof(0.0)
             result = true
             for i = 1:100
                 box = ((-rand(),rand()), (-rand(),rand()), (-rand(),rand()))
-                r₀ = mean.(box)
+                r₀ = ((box[1][1]+box[1][2])/2, (box[2][1]+box[2][2])/2, (box[3][1]+box[3][2])/2)
                 nout = randn(3)
                 nout[rand(1:3)] = 0
                 nout = (nout...)
@@ -37,7 +37,7 @@ const Float = typeof(0.0)
             result = true
             for i = 1:100
                 box = ((-rand(),rand()), (-rand(),rand()), (-rand(),rand()))
-                r₀ = mean.(box)
+                r₀ = ((box[1][1]+box[1][2])/2, (box[2][1]+box[2][2])/2, (box[3][1]+box[3][2])/2)
                 nout = (randn(), randn(), randn())
                 result &= volfrac(box, nout, r₀) ≈ 0.5
             end
@@ -50,7 +50,7 @@ const Float = typeof(0.0)
                 box = ((-rand(),rand()), (-rand(),rand()), (-rand(),rand()))
                 r₀ = (randn(), randn(), randn())
                 nout = (randn(), randn(), randn())
-                result &= (volfrac(box, nout, r₀) + volfrac(box, (-).(nout), r₀) ≈ 1.)
+                result &= (volfrac(box, nout, r₀) + volfrac(box, (-nout[1],-nout[2],-nout[3]), r₀) ≈ 1.)
             end
             result
         end
