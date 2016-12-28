@@ -9,10 +9,10 @@ const X, Y, Z = 1, 2, 3  # x, y, z coordinates
 const XYZ, YZX, ZXY = (X,Y,Z), (Y,Z,X), (Z,X,Y)
 const CYC_AXES = (XYZ, YZX, ZXY)
 
-typealias AbsVec AbstractVector
-typealias AbsMat AbstractMatrix
+typealias Tuple2{T} NTuple{2,T}
+typealias Tuple3{T} NTuple{3,T}
 
-function calc_vcbits{T<:Real,S<:Real}(box::AbsMat{T}, nout::AbsVec{S}, nr₀::Real)
+function calc_vcbits(box::Tuple3{Tuple2{Real}}, nout::Tuple3{Real}, nr₀::Real)
     # Calculate the bit array that indicates vertex contained-ness.
 
     # The bit array is 8 bits (= 1 byte).  The kth bit is 1 if the kth verex is
@@ -24,7 +24,7 @@ function calc_vcbits{T<:Real,S<:Real}(box::AbsMat{T}, nout::AbsVec{S}, nr₀::Re
     vcbits = 0x00
     bit = 0x01
     for sz = NP, sy = NP, sx = NP
-        if nx*box[X,sx] + ny*box[Y,sy] + nz*box[Z,sz] ≤ nr₀
+        if nx*box[X][sx] + ny*box[Y][sy] + nz*box[Z][sz] ≤ nr₀
             vcbits |= bit
         end
         bit <<= 1
@@ -61,26 +61,26 @@ function edgedir_quadsect(vcbits::UInt8)
     return dir
 end
 
-function rvol_quadsect{T<:Real,S<:Real}(box::AbsMat{T}, nout::AbsVec{S}, nr₀::Real, vcbits::UInt8)
+function rvol_quadsect(box::Tuple3{Tuple2{Real}}, nout::Tuple3{Real}, nr₀::Real, vcbits::UInt8)
     # Return the volume fraction for the case where the plane croses a set of four
     # parallel edges.
 
     w = edgedir_quadsect(vcbits)
-    ∆w = box[w,P] - box[w,N]
+    ∆w = box[w][P] - box[w][N]
 
     ~, u, v = CYC_AXES[w]
     nw, nu, nv = nout[w], nout[u], nout[v]
     mean_cepts = 4nr₀
     for sv = NP, su = NP
-        mean_cepts -= nu*box[u,su] + nv*box[v,sv]
+        mean_cepts -= nu*box[u][su] + nv*box[v][sv]
     end
     mean_cepts /=  nw * 4∆w
 
     sw = nw>0 ? N:P  # nw cannot be 0
-    return abs(mean_cepts - box[w,sw]/∆w)
+    return abs(mean_cepts - box[w][sw]/∆w)
 end
 
-function rvol_gensect{T<:Real,S<:Real}(box::AbsMat{T}, nout::AbsVec{S}, nr₀::Real, vcbits::UInt8)
+function rvol_gensect(box::Tuple3{Tuple2{Real}}, nout::Tuple3{Real}, nr₀::Real, vcbits::UInt8)
     # Calculate the volume fraction of most general cases, by cutting out corners
     # from a triangular pyramid.
     # Assume count_ones(vcbits) ≤ 4.  Othewise, call this function with flipped
@@ -88,8 +88,8 @@ function rvol_gensect{T<:Real,S<:Real}(box::AbsMat{T}, nout::AbsVec{S}, nr₀::R
 
     nx, ny, nz = nout
     sx, sy, sz = (nx≥0 ? N:P), (ny≥0 ? N:P), (nz≥0 ? N:P)  # signs of corner
-    cx, cy, cz = box[X,sx], box[Y,sy], box[Z,sz]  # corner coordinates
-    ∆x, ∆y, ∆z = box[X,P]-box[X,N], box[Y,P]-box[Y,N], box[Z,P]-box[Z,N]  # box edges
+    cx, cy, cz = box[X][sx], box[Y][sy], box[Z][sz]  # corner coordinates
+    ∆x, ∆y, ∆z = box[X][P]-box[X][N], box[Y][P]-box[Y][N], box[Z][P]-box[Z][N]  # box edges
     nxcx, nycy, nzcz = nx*cx, ny*cy, nz*cz
 
     rmax, rmid, rmin =  # (lengths from corner to intercetps) / (box edges)
@@ -128,10 +128,10 @@ half-space is described by the boundary plane.  The boundary plane is described 
 the outward normal vector `nout = [nx, ny, nz]` and a point `r₀ = [rx, ry, rz]`
 on the plane.  `nout` does not have to be normalized.
 """
-function volfrac{T<:Real,S<:Real,R<:Real}(box::AbsMat{T}, nout::AbsVec{S}, r₀::AbsVec{R})
+function volfrac(box::Tuple3{Tuple2{Real}}, nout::Tuple3{Real}, r₀::Tuple3{Real})
     # Return the volume fraction rvol = vol(box ⋂ half-space) / vol(box).
 
-    nr₀ = nout⋅r₀
+    nr₀ = nout[X]⋅r₀[X] + nout[Y]⋅r₀[Y] + nout[Z]⋅r₀[Z]
     vcbits = calc_vcbits(box, nout, nr₀)
     nvc = count_ones(vcbits)  # number of vertices contained
 
@@ -145,7 +145,7 @@ function volfrac{T<:Real,S<:Real,R<:Real}(box::AbsMat{T}, nout::AbsVec{S}, r₀:
         rvol = rvol_gensect(box, nout, nr₀, vcbits)
     else  # general cases with nvc ≥ 5
         assert(nvc ≥ 5)
-        rvol = 1. - rvol_gensect(box, -nout, -nr₀, ~vcbits)
+        rvol = 1. - rvol_gensect(box, (-).(nout), (-).(nr₀), ~vcbits)
     end
 
     return rvol
